@@ -37,7 +37,7 @@ _start:
     mov [fd], rax
 
     .loop:
-        lea rsi, buf        ; read()
+        lea rsi, buf        ; read(fd)
         mov rdi, [fd]       ;
         mov rdx, 128        ;
         call read           ;

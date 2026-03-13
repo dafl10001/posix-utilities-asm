@@ -73,3 +73,54 @@ read:
     syscall         ;
     
     ret
+
+
+getdents64:
+    ; ---------------------------------------------------------
+    ; list_dir: Reads directory entries into a buffer
+    ; Inputs:
+    ;   rdi - Pointer to directory path string (null-terminated)
+    ;   rsi - Pointer to buffer to store entries
+    ;   rdx - Size of buffer
+    ; Returns:
+    ;   rax - Number of bytes read, or negative on error
+    ; ---------------------------------------------------------
+
+    push rbx
+    push rdi
+    push rsi
+    push rdx
+
+    ; rax = 2 (open), rdi = path, rsi = O_RDONLY | O_DIRECTORY (0x10000)
+    mov rsi, 0x10000    ; open() 
+    call open           ;
+    
+    test rax, rax
+    js .error           ; If rax < 0, open failed
+
+    mov rbx, rax        ; Save FD in rbx
+
+    ; rax = 217, rdi = fd, rsi = buf, rdx = buf_len
+    pop rdx             ; Restore original rdx (len)    ; getdents64()
+    pop rsi             ; Restore original rsi (buf)    ;
+    mov rdi, rbx        ; Move FD to rdi                ;
+    mov rax, 217        ; sys_getdents64                ;
+    syscall
+
+    push rax            ; Save result of getdents64
+
+    mov rdi, rbx        ; close()
+    call close          ;
+
+    pop rax             ; Restore getdents64 result to return it
+    jmp .done
+
+    .error:
+        ; Clean up stack if we errored out early
+        pop rdx
+        pop rsi
+        pop rdi
+
+    .done:
+        pop rbx
+        ret

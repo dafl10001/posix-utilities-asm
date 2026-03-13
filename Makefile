@@ -1,15 +1,25 @@
 AS := nasm
+ASFLAGS := -f elf64
 LD := ld
 
-.PHONY: clean love
+BINS = dist/echo dist/cat dist/ls
+UTILS = src/utilities.o
 
-build: clean
-	$(AS) src/echo.s -f elf64
-	$(AS) src/cat.s -f elf64
-	$(AS) src/utilities.s -f elf64
+.PHONY: all clean love
 
-	$(LD) src/echo.o src/utilities.o -o dist/echo
-	$(LD) src/cat.o src/utilities.o -o dist/cat
+all: $(BINS)
+
+dist/cat: src/cat.o $(UTILS) | dist
+	$(LD) $^ -o $@
+
+dist/echo: src/echo.o $(UTILS) | dist
+	$(LD) $^ -o $@
+
+%.o: %.s
+	$(AS) $(ASFLAGS) $< -o $@
+
+dist:
+	mkdir -p dist/
 
 clean:
 	rm -f src/*.o
