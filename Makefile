@@ -1,6 +1,8 @@
 AS := nasm
 LD := ld
 
+.PHONY: clean love
+
 build: clean
 	$(AS) src/echo.s -f elf64
 	$(AS) src/cat.s -f elf64
@@ -9,7 +11,11 @@ build: clean
 	$(LD) src/echo.o src/utilities.o -o dist/echo
 	$(LD) src/cat.o src/utilities.o -o dist/cat
 
-.PHONY: clean
 clean:
 	rm -f src/*.o
 	rm -f dist/*
+
+
+
+love:
+	@echo "Not war"

@@ -29,7 +29,7 @@ print:
         inc rdx
         cmp byte [rsi+rdx], 0
         jnz .loop
-        jz .done
+        jmp .done
 
     .done:
 
