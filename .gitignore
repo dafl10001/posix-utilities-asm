@@ -1,5 +1,9 @@
 dist/*
 src/*.o
 
+utils/*
+
 .vscode/*
 .vscode
+
+disassembly.s

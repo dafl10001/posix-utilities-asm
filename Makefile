@@ -1,30 +1,44 @@
 AS := nasm
-ASFLAGS := -f elf64
 LD := ld
+CC := gcc
 
-BINS = dist/echo dist/cat dist/ls
-UTILS = src/utilities.o
+CCFLAGS := -nostdlib -fno-stack-protector -c
+ASFLAGS := -f elf64
+
+DIST_DIR := dist
+
+AS_SRCS := $(filter-out src/utilities.s src/ls.s, $(wildcard src/*.s))
+AS_BINS := $(patsubst src/%.s, $(DIST_DIR)/%, $(AS_SRCS))
+
+C_BINS := $(DIST_DIR)/ls
+UTILS := src/utilities.o
 
 .PHONY: all clean love
 
-all: $(BINS)
+all: $(DIST_DIR) $(AS_BINS) $(C_BINS)
+	rm -f src/*.o
 
-dist/cat: src/cat.o $(UTILS) | dist
+$(DIST_DIR)/ls: src/ls_c.o src/ls_asm.o $(UTILS)
 	$(LD) $^ -o $@
 
-dist/echo: src/echo.o $(UTILS) | dist
+src/ls_c.o: src/ls.c
+	$(CC) $(CCFLAGS) $< -o $@
+
+src/ls_asm.o: src/ls.s
+	$(AS) $(ASFLAGS) $< -o $@
+
+$(AS_BINS): $(DIST_DIR)/%: src/%.o $(UTILS)
 	$(LD) $^ -o $@
 
 %.o: %.s
 	$(AS) $(ASFLAGS) $< -o $@
 
-dist:
-	mkdir -p dist/
+$(DIST_DIR):
+	mkdir -p $(DIST_DIR)
 
 clean:
 	rm -f src/*.o
-	rm -f dist/*
-
+	rm -f $(DIST_DIR)/*
 
 
 love:

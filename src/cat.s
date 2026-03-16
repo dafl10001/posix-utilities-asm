@@ -68,3 +68,5 @@ _start:
     syscall             ;
 
     call exit_succ
+
+section .note.GNU-stack noalloc noexec nowrite progbits

@@ -46,3 +46,5 @@ _start:
     call print                          ;
 
     call exit_succ
+
+section .note.GNU-stack noalloc noexec nowrite progbits

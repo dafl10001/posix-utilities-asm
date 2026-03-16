@@ -4,6 +4,7 @@ global exit_err
 global print_raw
 global open
 global read
+global list_dir
 
 section .text
 exit_succ:
@@ -74,53 +75,94 @@ read:
     
     ret
 
+close:
+    ; Close file descriptor
+    mov rax, 3      ; close()
+    syscall         ;
 
-getdents64:
-    ; ---------------------------------------------------------
-    ; list_dir: Reads directory entries into a buffer
-    ; Inputs:
-    ;   rdi - Pointer to directory path string (null-terminated)
-    ;   rsi - Pointer to buffer to store entries
-    ;   rdx - Size of buffer
-    ; Returns:
-    ;   rax - Number of bytes read, or negative on error
-    ; ---------------------------------------------------------
+    ret
 
+; Input:  rdi = path string
+;         rsi = buffer to fill
+;         rdx = buffer size
+; Output: rax = total bytes written to string
+list_dir:
     push rbx
-    push rdi
-    push rsi
-    push rdx
+    push r12
+    push r13
+    push r14
+    push r15
 
-    ; rax = 2 (open), rdi = path, rsi = O_RDONLY | O_DIRECTORY (0x10000)
-    mov rsi, 0x10000    ; open() 
-    call open           ;
-    
+    mov r12, rsi        ; r12 = Base of user buffer
+    mov r13, rdx        ; r13 = Total capacity
+    mov r14, rsi        ; r14 = Write pointer
+
+    mov rsi, 0x10000    ; O_DIRECTORY | O_RDONLY
+    mov rax, 2          ; sys_open
+    syscall
     test rax, rax
-    js .error           ; If rax < 0, open failed
+    js .error_exit
+    mov rbx, rax        ; rbx = FD
 
-    mov rbx, rax        ; Save FD in rbx
+    mov rdi, rbx
+    mov rsi, r12
+    mov rdx, r13
+    mov rax, 217        ; sys_getdents64
+    syscall
+    test rax, rax
+    jle .close_and_exit
+    
+    mov r15, rax        ; r15 = bytes read from syscall
+    xor rcx, rcx        ; rcx = current read offset
 
-    ; rax = 217, rdi = fd, rsi = buf, rdx = buf_len
-    pop rdx             ; Restore original rdx (len)    ; getdents64()
-    pop rsi             ; Restore original rsi (buf)    ;
-    mov rdi, rbx        ; Move FD to rdi                ;
-    mov rax, 217        ; sys_getdents64                ;
+.parse_loop:
+    ; Identify file type at (buffer + offset + 18)
+    movzx r9, byte [r12 + rcx + 18] ; r9 = d_type
+    
+    ; Calculate address of d_name (offset 19)
+    lea r8, [r12 + rcx + 19] 
+    
+.copy_name:
+    mov al, [r8]
+    test al, al
+    jz .check_folder
+    mov [r14], al
+    inc r8
+    inc r14
+    jmp .copy_name
+
+.check_folder:
+    ; If d_type == 4 (DT_DIR), append '/'
+    cmp r9, 4
+    jne .add_newline
+    mov byte [r14], '/'
+    inc r14
+
+.add_newline:
+    mov byte [r14], 10  ; Newline
+    inc r14
+
+    ; Advance read offset using d_reclen (offset 16)
+    movzx rax, word [r12 + rcx + 16]
+    add rcx, rax
+    cmp rcx, r15
+    jl .parse_loop
+
+    mov byte [r14], 0   ; Null terminate string
+    mov rax, r14
+    sub rax, r12        ; Return string length
+
+.close_and_exit:
+    mov rdi, rbx
+    mov rax, 3          ; sys_close
     syscall
 
-    push rax            ; Save result of getdents64
+.error_exit:
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+    pop rbx
+    ret
 
-    mov rdi, rbx        ; close()
-    call close          ;
-
-    pop rax             ; Restore getdents64 result to return it
-    jmp .done
-
-    .error:
-        ; Clean up stack if we errored out early
-        pop rdx
-        pop rsi
-        pop rdi
-
-    .done:
-        pop rbx
-        ret
+section .note.GNU-stack noalloc noexec nowrite progbits
