@@ -6,6 +6,7 @@ extern exit_err
 extern print_raw
 extern open
 extern read
+extern close
 
 section .data
 newline db 10
@@ -63,9 +64,8 @@ _start:
     mov rdx, 1          ;
     call print_raw      ;
 
-    mov rax, 3          ; close(fd)
-    mov rdi, [fd]       ;
-    syscall             ;
+    mov rdi, [fd]       ; close()
+    call close          ;
 
     call exit_succ
 
